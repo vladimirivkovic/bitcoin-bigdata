@@ -1,0 +1,129 @@
+version: '3.2'
+services:
+
+  ### ZOOKEEPER & KAFKA
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka:latest
+    ports:
+      - "9094:9094"
+    environment:
+      HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://_{HOSTNAME_COMMAND}:9094
+      KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
+      - namenode
+
+  ### HDFS
+  namenode:
+    image: bde2020/hadoop-namenode:1.1.0-hadoop2.7.1-java8
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=test
+    ports:
+      - "50070:50070"
+    env_file:
+      - ./hadoop.env
+
+  datanode1:
+    image: bde2020/hadoop-datanode:1.1.0-hadoop2.7.1-java8
+    depends_on:
+      - namenode
+    volumes:
+      - hadoop_datanode1:/hadoop/dfs/data
+    env_file:
+      - ./hadoop.env
+
+  datanode2:
+    image: bde2020/hadoop-datanode:1.1.0-hadoop2.7.1-java8
+    depends_on:
+      - namenode
+    volumes:
+      - hadoop_datanode2:/hadoop/dfs/data
+    env_file:
+      - ./hadoop.env
+
+
+  ### HADOOP
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:1.1.0-hadoop2.7.1-java8
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+    ports:
+      - "58088:8088"
+    env_file:
+      - ./hadoop.env
+
+  nodemanager1:
+    image: bde2020/hadoop-nodemanager:1.1.0-hadoop2.7.1-java8
+    depends_on:
+      - namenode
+      - datanode1
+      - datanode2
+    env_file:
+      - ./hadoop.env
+  
+  ### SPARK
+  spark-master:
+    image: bde2020/spark-master:2.1.0-hadoop2.8-hive-java8
+    ports:
+      - 8080:8080
+      - 7077:7077
+    env_file:
+      - ./hadoop.env
+
+  spark-worker:
+    image: bde2020/spark-worker:2.1.0-hadoop2.8-hive-java8
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+    ports:
+      - 8081:8081
+    env_file:
+      - ./hadoop.env
+
+  ### HUE
+  hue:
+    image: bde2020/hdfs-filebrowser:3.11
+    ports:
+      - 8088:8088
+    environment:
+      - NAMENODE_HOST=namenode
+
+  ### BITCOIN TX PRODUCER
+  producer:
+    build: ./producer
+    environment:
+      KAFKA_HOST: kafka:9092
+    depends_on: 
+      - kafka
+      - namenode
+      
+  ### BITCOIN TX HDFS CONSUMER
+  consumer:
+    build: ./consumer
+    environment:
+      KAFKA_HOST: kafka:9092
+      HDFS_HOST: http://namenode:50070
+    depends_on: 
+      - kafka
+      - producer
+      - namenode
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode1:
+  hadoop_datanode2:

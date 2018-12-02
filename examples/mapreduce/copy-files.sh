@@ -1,0 +1,1 @@
+docker cp . bitcoin-bigdata_namenode_1:/bitcoin
