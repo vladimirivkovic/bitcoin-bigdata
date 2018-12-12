@@ -9,5 +9,6 @@ def addr_and_value(line):
 
 text_file = sc.textFile("hdfs://namenode:8020/user/root/bitcoin/csv/pending.csv")
 counts = text_file.map(lambda line: addr_and_value(line)).reduceByKey(lambda a, b: long(a) + long(b))
-counts.filter(lambda r: r[1] > 1e13).collect()
-counts.filter(lambda r: r[1] < 1e10).collect()
+
+print(counts.filter(lambda r: r[1] > 1e10).collect())
+print(counts.filter(lambda r: r[1] < -1e10).collect())
