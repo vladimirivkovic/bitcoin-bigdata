@@ -13,5 +13,12 @@ The sample project contains the following docker containers:
   - Hue web-based file-browser for HDFS
 #### Run using docker-compose
 ```sh
+$ export HADOOP_VERSION=2.0.0-hadoop3.1.2-java8
+$ docker-compose -f docker-compose-hadoop.yml up
+```
+or
+```sh
+$ export HADOOP_VERSION=2.0.0-hadoop3.1.2-java8
+$ export SPARK_VERSION=2.4.0-hadoop3.1
 $ docker-compose -f docker-compose-spark.yml up
 ```

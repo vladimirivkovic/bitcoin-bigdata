@@ -1,10 +1,11 @@
+#!/bin/bash
 DIR=/bitcoin
 
 printf "\nINSTALLING PYTHON\n"
 
 # apt update && apt install python -y
 
-$HADOOP_PREFIX/bin/hdfs dfs -rm -r -f /user/root/bitcoin_mr/
+hdfs dfs -rm -r -f /user/root/bitcoin_mr/
 
 cd $DIR
 
@@ -14,12 +15,15 @@ chmod a+x *.py
 
 printf "\nRUN HADOOP-STREAMING\n"
 
-$HADOOP_PREFIX/bin/hadoop jar $HADOOP_PREFIX/share/hadoop/tools/lib/hadoop-streaming-$HADOOP_VERSION.jar \
-    -input /user/root/bitcoin/csv/pending.csv \
+mapred streaming \
+    -input /user/root/bitcoin/csv/ \
     -output /user/root/bitcoin_mr \
-    -mapper $DIR/mapper.py \
-    -reducer $DIR/reducer.py
+    -mapper mapper.py \
+    -reducer reducer.py \
+    -file mapper.py \
+    -file reducer.py
+    
 
 printf "\nRESULTS\n"
 
-$HADOOP_PREFIX/bin/hdfs dfs -cat /user/root/bitcoin_mr/*
+hdfs dfs -cat /user/root/bitcoin_mr/*

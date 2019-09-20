@@ -8,7 +8,7 @@ import time
 import json
 
 TOPIC = 'bitcoin'
-MAX_TRANSACTIONS = 1000
+MAX_TRANSACTIONS = 100
 BITCOIN_DIR = '/user/root/bitcoin'
 PENDING_PATH = '/csv/pending.csv'
 
@@ -54,8 +54,8 @@ def handle_msg(transactions, msg):
         hdfs.write(BITCOIN_DIR + pending_new_path,
                    data=content, encoding='utf-8')
 
-        concat_path = "http://namenode:50070/webhdfs/v1" + BITCOIN_DIR + \
-            PENDING_PATH + "?op=CONCAT&sources=" + BITCOIN_DIR + pending_new_path
+        concat_path = "{}/webhdfs/v1{}{}?op=CONCAT&sources={}{}".format(
+            os.environ['HDFS_HOST'], BITCOIN_DIR, PENDING_PATH, BITCOIN_DIR, pending_new_path)
         r = requests.post(concat_path)
         print(r.status_code, r.reason)
 

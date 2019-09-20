@@ -3,10 +3,12 @@ services:
   ### ZOOKEEPER & KAFKA
   zookeeper:
     image: wurstmeister/zookeeper
+    container_name: zookeeper
     ports:
       - "2181:2181"
   kafka:
     image: wurstmeister/kafka:latest
+    container_name: kafka
     ports:
       - "9094:9094"
     environment:
@@ -22,60 +24,71 @@ services:
 
   ### HDFS
   namenode:
-    image: bde2020/hadoop-namenode:1.1.0-hadoop2.7.1-java8
+    image: bde2020/hadoop-namenode:${HADOOP_VERSION}
+    container_name: namenode
+    ports:
+      - 9870:9870
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
     environment:
       - CLUSTER_NAME=test
-    ports:
-      - "50070:50070"
     env_file:
       - ./hadoop.env
 
   datanode1:
-    image: bde2020/hadoop-datanode:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
+    image: bde2020/hadoop-datanode:${HADOOP_VERSION}
+    container_name: datanode1
     volumes:
       - hadoop_datanode1:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
     env_file:
       - ./hadoop.env
 
   datanode2:
-    image: bde2020/hadoop-datanode:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
+    image: bde2020/hadoop-datanode:${HADOOP_VERSION}
+    container_name: datanode2
     volumes:
       - hadoop_datanode2:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
     env_file:
       - ./hadoop.env
-
-
+  
   ### HADOOP
   resourcemanager:
-    image: bde2020/hadoop-resourcemanager:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
-      - datanode1
-      - datanode2
+    image: bde2020/hadoop-resourcemanager:${HADOOP_VERSION}
+    container_name: resourcemanager
     ports:
-      - "58088:8088"
+      - 8088:8088
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864"
     env_file:
       - ./hadoop.env
 
   nodemanager1:
-    image: bde2020/hadoop-nodemanager:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
-      - datanode1
-      - datanode2
+    image: bde2020/hadoop-nodemanager:${HADOOP_VERSION}
+    container_name: nodemanager
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 resourcemanager:8088"
+    env_file:
+      - ./hadoop.env
+  
+  historyserver:
+    image: bde2020/hadoop-historyserver:${HADOOP_VERSION}
+    container_name: historyserver
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9864 resourcemanager:8088"
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
     env_file:
       - ./hadoop.env
 
 
   ### BITCOIN TX PRODUCER
   producer:
-    image: producer
+    build: ./producer
+    container_name: producer
     environment:
       KAFKA_HOST: kafka:9092
     depends_on: 
@@ -84,10 +97,11 @@ services:
       
   ### BITCOIN TX HDFS CONSUMER
   consumer:
-    image: consumer
+    build: ./consumer
+    container_name: consumer
     environment:
       KAFKA_HOST: kafka:9092
-      HDFS_HOST: http://namenode:50070
+      HDFS_HOST: http://namenode:9870
     depends_on: 
       - kafka
       - producer
@@ -97,3 +111,4 @@ volumes:
   hadoop_namenode:
   hadoop_datanode1:
   hadoop_datanode2:
+  hadoop_historyserver:

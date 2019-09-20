@@ -4,10 +4,12 @@ services:
   ### ZOOKEEPER & KAFKA
   zookeeper:
     image: wurstmeister/zookeeper
+    container_name: zookeeper
     ports:
       - "2181:2181"
   kafka:
     image: wurstmeister/kafka:latest
+    container_name: kafka
     ports:
       - "9094:9094"
     environment:
@@ -25,67 +27,50 @@ services:
 
   ### HDFS
   namenode:
-    image: bde2020/hadoop-namenode:1.1.0-hadoop2.7.1-java8
+    image: bde2020/hadoop-namenode:${HADOOP_VERSION}
+    container_name: namenode
+    ports:
+      - 9870:9870
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
     environment:
       - CLUSTER_NAME=test
-    ports:
-      - "50070:50070"
     env_file:
       - ./hadoop.env
 
   datanode1:
-    image: bde2020/hadoop-datanode:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
+    image: bde2020/hadoop-datanode:${HADOOP_VERSION}
+    container_name: datanode1
     volumes:
       - hadoop_datanode1:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
     env_file:
       - ./hadoop.env
 
   datanode2:
-    image: bde2020/hadoop-datanode:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
+    image: bde2020/hadoop-datanode:${HADOOP_VERSION}
+    container_name: datanode2
     volumes:
       - hadoop_datanode2:/hadoop/dfs/data
-    env_file:
-      - ./hadoop.env
-
-
-  ### HADOOP
-  resourcemanager:
-    image: bde2020/hadoop-resourcemanager:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
-      - datanode1
-      - datanode2
-    ports:
-      - "58088:8088"
-    env_file:
-      - ./hadoop.env
-
-  nodemanager1:
-    image: bde2020/hadoop-nodemanager:1.1.0-hadoop2.7.1-java8
-    depends_on:
-      - namenode
-      - datanode1
-      - datanode2
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
     env_file:
       - ./hadoop.env
   
   ### SPARK
   spark-master:
-    image: bde2020/spark-master:2.1.0-hadoop2.8-hive-java8
+    image: bde2020/spark-master:${SPARK_VERSION}
+    container_name: spark-master
     ports:
       - 8080:8080
       - 7077:7077
     env_file:
       - ./hadoop.env
 
-  spark-worker:
-    image: bde2020/spark-worker:2.1.0-hadoop2.8-hive-java8
+  spark-worker1:
+    image: bde2020/spark-worker:${SPARK_VERSION}
+    container_name: spark-worker1
     depends_on:
       - spark-master
     environment:
@@ -95,17 +80,31 @@ services:
     env_file:
       - ./hadoop.env
 
-  ### HUE
-  hue:
-    image: bde2020/hdfs-filebrowser:3.11
-    ports:
-      - 8088:8088
+  spark-worker2:
+    image: bde2020/spark-worker:${SPARK_VERSION}
+    container_name: spark-worker2
+    depends_on:
+      - spark-master
     environment:
-      - NAMENODE_HOST=namenode
+      - SPARK_MASTER=spark://spark-master:7077
+    ports:
+      - 8082:8081
+    env_file:
+      - ./hadoop.env
+
+  ### HUE
+  # hue:
+  #   build: ./hdfs-hue
+  #   container_name: hue
+  #   ports:
+  #     - 8988:8088
+  #   environment:
+  #     - NAMENODE=namenode:9870
 
   ### BITCOIN TX PRODUCER
   producer:
     build: ./producer
+    container_name: producer
     environment:
       KAFKA_HOST: kafka:9092
     depends_on: 
@@ -115,9 +114,10 @@ services:
   ### BITCOIN TX HDFS CONSUMER
   consumer:
     build: ./consumer
+    container_name: consumer
     environment:
       KAFKA_HOST: kafka:9092
-      HDFS_HOST: http://namenode:50070
+      HDFS_HOST: http://namenode:9870
     depends_on: 
       - kafka
       - producer
