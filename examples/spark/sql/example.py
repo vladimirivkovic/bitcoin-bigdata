@@ -1,3 +1,4 @@
+from pyspark.sql.functions import *
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
 from pyspark.sql.types import *
@@ -15,16 +16,14 @@ spark = SparkSession(sc)
 
 quiet_logs(spark)
 
-from pyspark.sql.types import *
-from pyspark.sql.functions import *
 
-schemaFields = [('tx_id', LongType()), ('tx_hash', StringType()), \
-                ('timestamp', StringType()), ('type', StringType()), \
+schemaFields = [('tx_id', LongType()), ('tx_hash', StringType()),
+                ('timestamp', StringType()), ('type', StringType()),
                 ('address', StringType()), ('value', LongType())]
 fields = [StructField(field[0], field[1], True) for field in schemaFields]
 schema = StructType(fields)
 
-df = spark.read.csv("hdfs://namenode:8020/user/root/bitcoin/csv/pending.csv",
+df = spark.read.csv("hdfs://namenode:9000/user/root/bitcoin/csv/pending.csv",
                     header=True, mode="DROPMALFORMED", schema=schema)
 df = df.withColumn("value", df["value"].cast(DoubleType()) * 1e-8)
 
